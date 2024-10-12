@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class UserManagementScreen extends StatefulWidget {
+  const UserManagementScreen({super.key});
+
   @override
   _UserManagementScreenState createState() => _UserManagementScreenState();
 }
@@ -25,15 +27,19 @@ class _UserManagementScreenState extends State<UserManagementScreen>
   }
 
   Future<void> fetchStudents() async {
-    // Gọi API để lấy danh sách sinh viên
-    // Ví dụ sử dụng dữ liệu mẫu, bạn có thể thay bằng API thực tế sau
-    students = await UserApiService.fetchStudents();
-    filteredStudents = students; // Gán dữ liệu vào filteredStudents
-    setState(() {});
+    try {
+      students = await UserApiService.fetchStudents();
+      if (mounted) {
+        setState(() {
+          filteredStudents = students; // Gán dữ liệu vào filteredStudents
+        });
+      }
+    } catch (e) {
+      print(e); // In lỗi nếu có
+    }
   }
 
   Future<void> fetchLecturers() async {
-    // Gọi API để lấy danh sách giảng viên
     try {
       final response = await http.get(
         Uri.parse(
@@ -50,8 +56,12 @@ class _UserManagementScreenState extends State<UserManagementScreen>
         lecturers = jsonResponse
             .map((lecturer) => lecturer as Map<String, dynamic>)
             .toList();
-        filteredLecturers = lecturers;
-        setState(() {});
+
+        if (mounted) {
+          setState(() {
+            filteredLecturers = lecturers;
+          });
+        }
       } else {
         throw Exception('Failed to load lecturers');
       }

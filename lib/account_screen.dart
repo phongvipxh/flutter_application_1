@@ -1,11 +1,61 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http; // Thêm import cho http
+import 'dart:convert';
 import 'feedback.dart';
 import 'profile_screen.dart';
 import 'login_screen.dart'; // Import màn hình đăng nhập
+import 'package:shared_preferences/shared_preferences.dart';
 
-class AccountScreen extends StatelessWidget {
-  final String userName = "Tên người dùng";
-  final String userEmail = "email@domain.com";
+class AccountScreen extends StatefulWidget {
+  const AccountScreen({Key? key}) : super(key: key);
+
+  @override
+  State<AccountScreen> createState() => _AccountScreenState();
+}
+
+class _AccountScreenState extends State<AccountScreen> {
+  String userName = '';
+  String userEmail = '';
+  String userAvatar = '';
+
+  @override
+  void initState() {
+    super.initState();
+    fetchUserData(); // Gọi hàm để lấy dữ liệu người dùng khi khởi tạo
+  }
+
+  Future<String?> getAccessToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs
+        .getString('access_token'); // Retrieve token with key 'access_token'
+  }
+
+  Future<void> fetchUserData() async {
+    String? accessToken = await getAccessToken();
+    print("Access token: $accessToken");
+
+    final response = await http.get(
+      Uri.parse('https://sos-vanthuc-backend-bl1m.onrender.com/api/auth/me'),
+      headers: {
+        'accept': 'application/json',
+        'Authorization': 'Bearer $accessToken'
+      },
+    );
+
+    if (response.statusCode == 200) {
+      // Use utf8.decode to decode the response
+      final data = json.decode(utf8.decode(response.bodyBytes));
+
+      setState(() {
+        userName = data['profile']['full_name'];
+        userEmail = data['email'];
+        userAvatar = data['profile']['avatar'] ?? ''; // Sử dụng avatar nếu có
+      });
+    } else {
+      // Xử lý lỗi nếu không lấy được dữ liệu
+      throw Exception('Failed to load user data');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,15 +86,16 @@ class AccountScreen extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 50,
-                        backgroundImage: NetworkImage(
-                            'https://cellphones.com.vn/sforum/wp-content/uploads/2023/10/avatar-trang-4.jpg'), // Thay đổi với ảnh đại diện mới
+                        backgroundImage: NetworkImage(userAvatar.isNotEmpty
+                            ? userAvatar
+                            : 'https://cellphones.com.vn/sforum/wp-content/uploads/2023/10/avatar-trang-4.jpg'), // Thay đổi với ảnh đại diện mới
                       ),
                       SizedBox(width: 20),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            userName,
+                            userName.isNotEmpty ? userName : 'Tên người dùng',
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
@@ -52,7 +103,7 @@ class AccountScreen extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            userEmail,
+                            userEmail.isNotEmpty ? userEmail : 'Email',
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.grey[600],
@@ -127,6 +178,19 @@ class AccountScreen extends StatelessWidget {
   }
 
   // Hàm hiển thị dialog khi nhấn Đăng xuất
+  void _logout(BuildContext context) async {
+    // Xóa token và thông tin đăng nhập đã lưu
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear(); // Xóa tất cả dữ liệu lưu trữ
+
+    // Điều hướng đến màn hình đăng nhập và xóa ngăn xếp
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => LoginScreen()),
+      (Route<dynamic> route) => false,
+    );
+  }
+
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -145,12 +209,7 @@ class AccountScreen extends StatelessWidget {
               child: Text("Có"),
               onPressed: () {
                 Navigator.of(context).pop(); // Đóng pop-up trước khi đăng xuất
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
-                  (Route<dynamic> route) =>
-                      false, // Xóa tất cả các trang trước đó và điều hướng đến màn hình đăng nhập
-                );
+                _logout(context); // Gọi hàm logout
               },
             ),
           ],

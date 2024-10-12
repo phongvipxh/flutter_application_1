@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class AllDeviceScreen extends StatefulWidget {
+  const AllDeviceScreen({super.key});
+
   @override
   _AllDeviceScreenState createState() => _AllDeviceScreenState();
 }
@@ -68,7 +70,7 @@ class _AllDeviceScreenState extends State<AllDeviceScreen> {
           title: Text("Tạo yêu cầu mượn thiết bị",
               style: TextStyle(fontWeight: FontWeight.bold)),
           content: SingleChildScrollView(
-            child: Container(
+            child: SizedBox(
               width: 400, // Set a fixed width for the dialog
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -263,16 +265,16 @@ class _AllDeviceScreenState extends State<AllDeviceScreen> {
           ),
           ElevatedButton(
             onPressed: () => _showBorrowRequestForm(context),
-            child: Text(
-              "Tạo yêu cầu mượn thiết bị",
-              style:
-                  TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
               textStyle: TextStyle(
                 fontSize: 16,
               ),
+            ),
+            child: Text(
+              "Tạo yêu cầu mượn thiết bị",
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
             ),
           ),
           Expanded(

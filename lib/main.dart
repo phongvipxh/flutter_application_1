@@ -5,6 +5,8 @@ import 'devicelist_screen.dart'; // Màn hình danh sách thiết bị
 import 'package:flutter_application_1/account_screen.dart'; // Màn hình tài khoản
 import 'manage_device.dart';
 import 'user_management_screen.dart';
+import 'package:flutter_application_1/account_screen.dart';
+
 // import 'manage_room.dart'; // Màn hình quản lý phòng
 
 void main() {
@@ -12,6 +14,8 @@ void main() {
 }
 
 class MainApp extends StatelessWidget {
+  const MainApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -31,6 +35,8 @@ class MainApp extends StatelessWidget {
 
 // Màn hình chính với thanh điều hướng
 class MyApp extends StatefulWidget {
+  const MyApp({super.key});
+
   @override
   State<MyApp> createState() => _MyAppState();
 }

@@ -2,65 +2,65 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'devicelist_screen.dart';
 
-class DataStorage {
-  // Hàm lưu danh sách thiết bị vào SharedPreferences
-  static Future<void> saveDeviceLists(List<DeviceList> deviceLists) async {
-    final prefs = await SharedPreferences.getInstance();
+// class DataStorage {
+//   // Hàm lưu danh sách thiết bị vào SharedPreferences
+//   static Future<void> saveDeviceLists(List<DeviceList> deviceLists) async {
+//     final prefs = await SharedPreferences.getInstance();
 
-    // Mã hóa danh sách thiết bị thành chuỗi JSON
-    final String encodedData = jsonEncode(
-      deviceLists
-          .map((list) => {
-                'listName': list.listName,
-                'devices': list.devices
-                    .map((device) => {
-                          'id': device.id,
-                          'name': device.name,
-                          'info': device.info,
-                          'notes': device.notes,
-                          'total': device.total,
-                        })
-                    .toList(),
-              })
-          .toList(),
-    );
+//     // Mã hóa danh sách thiết bị thành chuỗi JSON
+//     final String encodedData = jsonEncode(
+//       deviceLists
+//           .map((list) => {
+//                 'listName': list.listName,
+//                 'devices': list.devices
+//                     .map((device) => {
+//                           'id': device.id,
+//                           'name': device.name,
+//                           'info': device.info,
+//                           'notes': device.notes,
+//                           'total': device.total,
+//                         })
+//                     .toList(),
+//               })
+//           .toList(),
+//     );
 
-    // Lưu chuỗi JSON vào SharedPreferences
-    await prefs.setString('deviceLists', encodedData);
-  }
+//     // Lưu chuỗi JSON vào SharedPreferences
+//     await prefs.setString('deviceLists', encodedData);
+//   }
 
-  // Hàm tải danh sách thiết bị từ SharedPreferences
-  static Future<List<DeviceList>> loadDeviceLists() async {
-    final prefs = await SharedPreferences.getInstance();
+//   // Hàm tải danh sách thiết bị từ SharedPreferences
+//   static Future<List<DeviceList>> loadDeviceLists() async {
+//     final prefs = await SharedPreferences.getInstance();
 
-    // Lấy dữ liệu được lưu trữ dưới dạng chuỗi JSON
-    final String? encodedData = prefs.getString('deviceLists');
+//     // Lấy dữ liệu được lưu trữ dưới dạng chuỗi JSON
+//     final String? encodedData = prefs.getString('deviceLists');
 
-    // Nếu không có dữ liệu thì trả về danh sách rỗng
-    if (encodedData == null) {
-      return [];
-    }
+//     // Nếu không có dữ liệu thì trả về danh sách rỗng
+//     if (encodedData == null) {
+//       return [];
+//     }
 
-    // Giải mã dữ liệu từ JSON
-    final List<dynamic> decodedData = jsonDecode(encodedData);
+//     // Giải mã dữ liệu từ JSON
+//     final List<dynamic> decodedData = jsonDecode(encodedData);
 
-    // Chuyển đổi dữ liệu JSON thành danh sách đối tượng DeviceList
-    return decodedData.map((list) {
-      final deviceList = DeviceList(list['listName']);
-      deviceList.devices = (list['devices'] as List<dynamic>).map((deviceData) {
-        // Create a Device instance using all necessary parameters
-        return Device(
-          deviceData['id'] as int,
-          deviceData['name'],
-          deviceData['info'],
-          deviceData['notes'],
-          deviceData['total'],
-        );
-      }).toList();
-      return deviceList;
-    }).toList();
-  }
-}
+//     // Chuyển đổi dữ liệu JSON thành danh sách đối tượng DeviceList
+//     return decodedData.map((list) {
+//       final deviceList = DeviceList(list['listName']);
+//       deviceList.devices = (list['devices'] as List<dynamic>).map((deviceData) {
+//         // Create a Device instance using all necessary parameters
+//         return Device(
+//           deviceData['id'] as int,
+//           deviceData['name'],
+//           deviceData['info'],
+//           deviceData['notes'],
+//           deviceData['total'],
+//         );
+//       }).toList();
+//       return deviceList;
+//     }).toList();
+//   }
+// }
 
 class DeviceStorage {
   static List<Map<String, dynamic>> devices = [

@@ -4,6 +4,8 @@ import 'device_borrowing_screen.dart';
 import 'device_history_screen.dart';
 
 class ManageDeviceScreen extends StatelessWidget {
+  const ManageDeviceScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

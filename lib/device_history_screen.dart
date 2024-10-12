@@ -28,6 +28,8 @@ class BorrowHistory {
 }
 
 class DeviceHistoryScreen extends StatelessWidget {
+  const DeviceHistoryScreen({super.key});
+
   Future<List<BorrowHistory>> fetchBorrowHistory() async {
     List<Map<String, dynamic>> fakeApiResponse = [
       {

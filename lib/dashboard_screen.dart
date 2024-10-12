@@ -7,12 +7,14 @@ import 'package:flutter_application_1/devicelist_screen.dart';
 import 'package:flutter_application_1/account_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
+  const DashboardScreen({super.key});
+
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  int _selectedIndex = 0;
+  final int _selectedIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -454,7 +456,7 @@ class LegendItem extends StatelessWidget {
   final Color color;
   final String text;
 
-  const LegendItem({required this.color, required this.text});
+  const LegendItem({super.key, required this.color, required this.text});
 
   @override
   Widget build(BuildContext context) {

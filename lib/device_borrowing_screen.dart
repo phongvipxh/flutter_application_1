@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class DeviceBorrowingScreen extends StatelessWidget {
+  const DeviceBorrowingScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -12,74 +14,81 @@ class DeviceBorrowingScreen extends StatelessWidget {
             fontSize: 22,
           ),
         ),
+        backgroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        child: ListView.builder(
-          shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
-          itemCount: 5, // Giả định 5 phiếu mượn, có thể lấy từ API sau này
-          itemBuilder: (context, index) {
-            return Card(
-              margin: EdgeInsets.all(8.0),
-              child: ListTile(
-                title: Text(
-                  "Mã: ABC123", // In đậm mã phiếu
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        color: Colors.white,
+        child: SingleChildScrollView(
+          child: ListView.builder(
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            itemCount: 5, // Giả định 5 phiếu mượn, có thể lấy từ API sau này
+            itemBuilder: (context, index) {
+              return Card(
+                margin: EdgeInsets.all(8.0),
+                child: ListTile(
+                  title: Text(
+                    "Mã: ABC123", // In đậm mã phiếu
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 4.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  subtitle: Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.person, size: 16, color: Colors.grey),
+                            SizedBox(width: 4),
+                            Expanded(
+                                child: Text(
+                                    "Nguyễn Văn A")), // Bỏ chữ "Người mượn:"
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            Icon(Icons.date_range,
+                                size: 16, color: Colors.grey),
+                            SizedBox(width: 4),
+                            Expanded(child: Text("Trả trước: 2024-09-30")),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            Icon(Icons.info_outline,
+                                size: 16, color: Colors.grey),
+                            SizedBox(width: 4),
+                            Expanded(child: Text("Trạng thái: Chưa trả")),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Row(
-                        children: [
-                          Icon(Icons.person, size: 16, color: Colors.grey),
-                          SizedBox(width: 4),
-                          Expanded(
-                              child:
-                                  Text("Nguyễn Văn A")), // Bỏ chữ "Người mượn:"
-                        ],
+                      TextButton(
+                        onPressed: () {
+                          _showMarkAsReturnedDialog(context);
+                        },
+                        child: Text("Đã trả"),
                       ),
-                      Row(
-                        children: [
-                          Icon(Icons.date_range, size: 16, color: Colors.grey),
-                          SizedBox(width: 4),
-                          Expanded(child: Text("Trả trước: 2024-09-30")),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          Icon(Icons.info_outline,
-                              size: 16, color: Colors.grey),
-                          SizedBox(width: 4),
-                          Expanded(child: Text("Trạng thái: Chưa trả")),
-                        ],
+                      TextButton(
+                        onPressed: () {
+                          _showDetailsDialog(context);
+                        },
+                        child: Text("Chi tiết"),
                       ),
                     ],
                   ),
                 ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextButton(
-                      onPressed: () {
-                        _showMarkAsReturnedDialog(context);
-                      },
-                      child: Text("Đã trả"),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        _showDetailsDialog(context);
-                      },
-                      child: Text("Chi tiết"),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
