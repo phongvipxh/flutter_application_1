@@ -1,32 +1,51 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/devicelist_screen.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'device_detail_screen.dart';
 
-class DeviceScreen extends StatelessWidget {
+class DeviceScreen extends StatefulWidget {
   final String categoryName;
 
   DeviceScreen({required this.categoryName});
+
+  @override
+  State<DeviceScreen> createState() => _DeviceScreenState();
+}
+
+class _DeviceScreenState extends State<DeviceScreen> {
+  late Future<List<Device>> devicesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    devicesFuture = fetchDevices();
+  }
+
   Future<List<Device>> fetchDevices() async {
     final response = await http.get(Uri.parse(
         'https://sos-vanthuc-backend-bl1m.onrender.com/api/device?skip=0&limit=100'));
 
     if (response.statusCode == 200) {
-      // Decode the response body with UTF-8
       List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
-
       return data.map((json) => Device.fromJson(json)).toList();
     } else {
       throw Exception('Failed to load devices');
     }
   }
-  // print ra dữ liệu gọi  từ API
+
+  Future<void> _refreshDevices() async {
+    setState(() {
+      devicesFuture = fetchDevices();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(categoryName,
+        title: Text(widget.categoryName,
             style: TextStyle(
               color: Colors.black,
               fontWeight: FontWeight.bold,
@@ -42,42 +61,43 @@ class DeviceScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: FutureBuilder<List<Device>>(
-        future: fetchDevices(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else {
-            final devices = snapshot.data!
-                .where((device) => device.category == categoryName)
-                .toList();
-            print(devices);
+      body: RefreshIndicator(
+        onRefresh: _refreshDevices, // Refresh function
+        child: FutureBuilder<List<Device>>(
+          future: devicesFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Center(child: CircularProgressIndicator());
+            } else if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            } else {
+              final devices = snapshot.data!
+                  .where((device) => device.category == widget.categoryName)
+                  .toList();
 
-            return ListView.builder(
-              itemCount: devices.length,
-              itemBuilder: (context, index) {
-                return DeviceCard(
-                  device: devices[index],
-                  onDelete: () {
-                    _showDeleteDialog(context, index);
-                  },
-                  onViewDetails: () {
-                    _showDeviceDetails(context, devices[index]);
-                  },
-                );
-              },
-            );
-          }
-        },
+              return ListView.builder(
+                itemCount: devices.length,
+                itemBuilder: (context, index) {
+                  return DeviceCard(
+                    device: devices[index],
+                    onDelete: () {
+                      _showDeleteDialog(context, index, devices);
+                    },
+                    onViewDetails: () {
+                      _showDeviceDetails(context, devices[index]);
+                    },
+                  );
+                },
+              );
+            }
+          },
+        ),
       ),
     );
   }
 
   void _showAddDeviceDialog(BuildContext context) {
     final TextEditingController nameController = TextEditingController();
-    final TextEditingController categoryController = TextEditingController();
     final TextEditingController totalController = TextEditingController();
     final TextEditingController infoController = TextEditingController();
     final TextEditingController noteController = TextEditingController();
@@ -106,7 +126,9 @@ class DeviceScreen extends StatelessWidget {
                 ),
                 SizedBox(height: 10),
                 TextField(
-                  controller: categoryController,
+                  enabled: false, // Disable input for category field
+                  controller: TextEditingController(
+                      text: widget.categoryName), // Set default value
                   decoration: InputDecoration(
                     labelText: 'Loại thiết bị*',
                     border: OutlineInputBorder(),
@@ -173,18 +195,21 @@ class DeviceScreen extends StatelessWidget {
             ),
             TextButton(
               child: Text("Thêm"),
-              onPressed: () {
+              onPressed: () async {
                 if (nameController.text.isNotEmpty &&
-                    categoryController.text.isNotEmpty &&
                     totalController.text.isNotEmpty) {
-                  // Thêm logic để lưu thiết bị mới vào danh sách
-                  // Ví dụ:
-                  // allDevices.add(Device(
-                  //   id: allDevices.length + 1,
-                  //   name: nameController.text,
-                  //   category: categoryController.text,
-                  //   total: int.parse(totalController.text),
-                  // ));
+                  await addDevice(
+                    name: nameController.text,
+                    category: widget.categoryName,
+                    total: int.parse(totalController.text),
+                    information: infoController.text,
+                    note: noteController.text,
+                  );
+                  // Cập nhật lại trạng thái để hiển thị thiết bị mới
+                  setState(() {
+                    devicesFuture =
+                        fetchDevices(); // Tải lại danh sách thiết bị
+                  });
                   Navigator.of(context).pop();
                 } else {
                   // Hiển thị thông báo lỗi nếu các trường bắt buộc không được điền
@@ -203,7 +228,66 @@ class DeviceScreen extends StatelessWidget {
     );
   }
 
-  void _showDeleteDialog(BuildContext context, int index) {
+  Future<void> addDevice({
+    required String name,
+    required String category,
+    required int total,
+    required String information,
+    required String note,
+  }) async {
+    final response = await http.post(
+      Uri.parse('https://sos-vanthuc-backend-bl1m.onrender.com/api/device'),
+      headers: <String, String>{
+        'accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        'name': name,
+        'category': category,
+        'information': information,
+        'image': 'default.jpg', // Default image
+        'note': note,
+        'total': total,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      await fetchDevices();
+    }
+    if (response.statusCode != 200) {
+      await fetchDevices();
+      throw Exception('Failed to add device');
+    }
+  }
+
+  Future<String?> getAccessToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs
+        .getString('access_token'); // Retrieve token with key 'access_token'
+  }
+
+  Future<void> deleteDevice(int deviceId) async {
+    String? accessToken = await getAccessToken();
+
+    final response = await http.delete(
+      Uri.parse(
+          'https://sos-vanthuc-backend-bl1m.onrender.com/api/device/$deviceId'),
+      headers: <String, String>{
+        'accept': 'application/json',
+        'Authorization':
+            'Bearer ${accessToken}', // Thay YOUR_ACCESS_TOKEN_HERE bằng token của bạn
+      },
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete device');
+    }
+  }
+
+  void _showDeleteDialog(
+      BuildContext context, int index, List<Device> devices) {
+    final deviceToDelete = devices[index]; // Lấy thiết bị để xóa
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -220,8 +304,18 @@ class DeviceScreen extends StatelessWidget {
             ),
             TextButton(
               child: Text("Xóa"),
-              onPressed: () {
-                Navigator.of(context).pop();
+              onPressed: () async {
+                try {
+                  await deleteDevice(deviceToDelete.id); // Gọi hàm xóa thiết bị
+                  setState(() {}); // Gọi setState để cập nhật UI
+                  Navigator.of(context).pop();
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Xóa thiết bị không thành công!'),
+                    ),
+                  );
+                }
               },
             ),
           ],
@@ -231,31 +325,18 @@ class DeviceScreen extends StatelessWidget {
   }
 
   void _showDeviceDetails(BuildContext context, Device device) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title:
-              Text(device.name, style: TextStyle(fontWeight: FontWeight.bold)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Mã thiết bị: ${device.id}'),
-              Text('Số lượng: ${device.total}'),
-              // Thêm thông tin khác nếu cần
-            ],
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: Text("Đóng"),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
+    // When navigating to DeviceDetailsScreen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DeviceDetailsScreen(deviceId: device.id),
+      ),
+    ).then((shouldReload) {
+      if (shouldReload == true) {
+        // Call your method to reload data here
+        fetchDevices(); // Replace with your actual method to fetch data
+      }
+    });
   }
 }
 
@@ -315,39 +396,22 @@ class DeviceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: EdgeInsets.symmetric(vertical: 8.0),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      margin: EdgeInsets.all(8.0),
+      child: ListTile(
+        title: Text(
+          device.name,
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text('Số lượng: ${device.total}'),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    device.name,
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    'Mã thiết bị: ${device.id}',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  ),
-                  Text(
-                    'Số lượng: ${device.total}',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  ),
-                ],
-              ),
-            ),
             IconButton(
               icon: Icon(Icons.info, color: Colors.blueAccent),
               onPressed: onViewDetails,
             ),
             IconButton(
-              icon: Icon(Icons.delete, color: Colors.red),
+              icon: Icon(Icons.delete, color: Colors.redAccent),
               onPressed: onDelete,
             ),
           ],

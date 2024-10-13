@@ -173,9 +173,52 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
     }
   }
 
+  Future<void> editDeviceCategory(
+      int id, String name, bool isActive, String image) async {
+    final response = await http.put(
+      Uri.parse(
+          'https://sos-vanthuc-backend-bl1m.onrender.com/api/device-category/$id'),
+      headers: {
+        'accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        'name': name,
+        'is_active': isActive,
+        'image': image,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      print('Device category updated successfully');
+      // Tải lại danh sách thiết bị nếu cập nhật thành công
+      await fetchDevices();
+    } else {
+      print('Failed to update device category');
+      // Có thể tải lại danh sách thiết bị để đảm bảo tính nhất quán, nhưng nếu không cần thiết thì có thể bỏ qua
+      await fetchDevices();
+    }
+  }
+
+  Future<void> deleteDeviceCategory(int id) async {
+    final response = await http.delete(
+      Uri.parse(
+          'https://sos-vanthuc-backend-bl1m.onrender.com/api/device-category/$id'),
+      headers: {'accept': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      print('Device category deleted successfully');
+      await fetchDevices(); // Tải lại danh sách thiết bị
+    } else {
+      print('Failed to delete device category');
+    }
+  }
+
   void _showEditDialog(BuildContext context, Device device) {
     final TextEditingController editController =
         TextEditingController(text: device.name);
+    bool isActive = device.isActive; // Biến để lưu trạng thái active
 
     showDialog(
       context: context,
@@ -183,9 +226,15 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
         return AlertDialog(
           title: Text('Sửa loại thiết bị',
               style: TextStyle(fontWeight: FontWeight.bold)),
-          content: TextField(
-            decoration: InputDecoration(hintText: "Nhập tên loại thiết bị"),
-            controller: editController,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                decoration: InputDecoration(hintText: "Nhập tên loại thiết bị"),
+                controller: editController,
+              ),
+              // Nếu cần, có thể thêm một Toggle hoặc Checkbox để thay đổi trạng thái active
+            ],
           ),
           actions: <Widget>[
             TextButton(
@@ -197,7 +246,9 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
             TextButton(
               child: Text("Lưu"),
               onPressed: () {
-                // Gọi hàm chỉnh sửa thiết bị ở đây nếu cần
+                // Gọi hàm chỉnh sửa thiết bị
+                editDeviceCategory(
+                    device.id, editController.text, isActive, device.imageUrl);
                 Navigator.of(context).pop();
               },
             ),
@@ -224,9 +275,10 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
             ),
             TextButton(
               child: Text("Xóa"),
-              onPressed: () {
-                // Gọi hàm xóa thiết bị ở đây nếu cần
-                Navigator.of(context).pop();
+              onPressed: () async {
+                await deleteDeviceCategory(
+                    devices[index].id); // Gọi hàm xóa thiết bị
+                Navigator.of(context).pop(); // Đóng hộp thoại sau khi xóa
               },
             ),
           ],
@@ -273,7 +325,7 @@ class DeviceCard extends StatelessWidget {
                           TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     Text(
-                      '${device.totalDevices} chiếc',
+                      '${device.totalDevices} loại thiết bị',
                       style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     ),
                   ],
