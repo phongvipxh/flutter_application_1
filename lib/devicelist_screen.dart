@@ -27,19 +27,23 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
     if (response.statusCode == 200) {
       // Chuyển đổi dữ liệu với UTF-8
       final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
-      setState(() {
-        devices = data
-            .map((item) => Device(
-                  id: item['id'],
-                  name: item['name'],
-                  isActive: item['is_active'],
-                  totalDevices: item['total_devices'],
-                  imageUrl: item['presigned_url'].isNotEmpty
-                      ? item['presigned_url']
-                      : item['image'],
-                ))
-            .toList();
-      });
+
+      // Kiểm tra xem widget còn được mounted hay không
+      if (mounted) {
+        setState(() {
+          devices = data
+              .map((item) => Device(
+                    id: item['id'],
+                    name: item['name'],
+                    isActive: item['is_active'],
+                    totalDevices: item['total_devices'],
+                    imageUrl: item['presigned_url'].isNotEmpty
+                        ? item['presigned_url']
+                        : item['image'],
+                  ))
+              .toList();
+        });
+      }
     } else {
       print('Failed to load devices');
     }

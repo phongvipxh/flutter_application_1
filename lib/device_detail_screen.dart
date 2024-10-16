@@ -34,9 +34,10 @@ class _DeviceDetailsScreenState extends State<DeviceDetailsScreen> {
 
     if (response.statusCode == 200) {
       setState(() {
-        device = Device.fromJson(json
-            .decode(response.body)); // Assuming Device has a fromJson method
-        isLoading = false; // Update loading state
+        // Giải mã dữ liệu UTF-8
+        var jsonData = json.decode(utf8.decode(response.bodyBytes));
+        device = Device.fromJson(jsonData);
+        isLoading = false;
       });
     } else {
       throw Exception('Failed to load device details');

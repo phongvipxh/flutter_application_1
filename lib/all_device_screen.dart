@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class AllDeviceScreen extends StatefulWidget {
   const AllDeviceScreen({super.key});
@@ -8,34 +10,74 @@ class AllDeviceScreen extends StatefulWidget {
 }
 
 class _AllDeviceScreenState extends State<AllDeviceScreen> {
-  // Sample static device data
-  List<Map<String, dynamic>> devices = [
-    {
-      'deviceId': 'D001',
-      'type': 'Laptop',
-      'name': 'Dell XPS 13',
-      'totalQuantity': 10,
-      'borrowed': 2,
-      'available': 8,
-    },
-    {
-      'deviceId': 'D002',
-      'type': 'Tablet',
-      'name': 'iPad Pro',
-      'totalQuantity': 5,
-      'borrowed': 1,
-      'available': 4,
-    },
-    // Add more devices as needed
-  ];
-
+  List<Map<String, dynamic>> devices = [];
   List<Map<String, dynamic>> filteredDevices = [];
+  List<Map<String, dynamic>> students = []; // Store student data here
   TextEditingController searchController = TextEditingController();
+  bool isLoading = true;
+  String selectedStudentId = '';
+  String selectedDeviceId = ''; // Thêm biến để lưu trữ device_id đã chọn
+  DateTime returnDate = DateTime.now();
+  TextEditingController returnDateController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    filteredDevices = devices; // Initialize with all devices
+    fetchDevices();
+    fetchStudents(); // Fetch student data
+    returnDateController.text = "${returnDate.toLocal()}"
+        .split(' ')[0]; // Khởi tạo giá trị cho TextEditingController
+  }
+
+  Future<void> fetchDevices() async {
+    final response = await http.get(
+      Uri.parse(
+          'https://sos-vanthuc-backend-bl1m.onrender.com/api/device?skip=0&limit=1000'),
+      headers: {'accept': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
+
+      setState(() {
+        devices = data.map((device) {
+          return {
+            'deviceId': device['id'].toString(),
+            'type': device['category'],
+            'name': device['name'],
+            'totalQuantity': device['total'],
+            'borrowed': device['total_used'],
+            'available': device['total'] - device['total_used'],
+          };
+        }).toList();
+
+        filteredDevices = devices; // Initialize with all devices
+      });
+    } else {
+      print('Failed to load devices');
+    }
+  }
+
+  Future<void> fetchStudents() async {
+    final response = await http.get(
+      Uri.parse(
+          'https://sos-vanthuc-backend-bl1m.onrender.com/api/customer?limit=1000&offset=0'),
+      headers: {'accept': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
+      setState(() {
+        students = data.map((student) {
+          return {
+            'studentId': student['id'].toString(),
+            'fullName': student['full_name'],
+          };
+        }).toList();
+      });
+    } else {
+      print('Failed to load students');
+    }
   }
 
   void searchDevice(String query) {
@@ -51,178 +93,151 @@ class _AllDeviceScreenState extends State<AllDeviceScreen> {
   }
 
   void _showBorrowRequestForm(BuildContext context) {
-    String studentId = '';
-    String studentName = '';
-    DateTime returnDate = DateTime.now();
-    String selectedDevice = '';
-    int quantity = 1;
-
-    // Biến để lưu thông báo lỗi
-    String? studentIdError;
-    String? studentNameError;
-    String? deviceError;
-    String? quantityError;
+    final TextEditingController quantityController = TextEditingController();
+    final TextEditingController noteController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text("Tạo yêu cầu mượn thiết bị",
-              style: TextStyle(fontWeight: FontWeight.bold)),
+          title: Text("Tạo yêu cầu mượn thiết bị"),
           content: SingleChildScrollView(
-            child: SizedBox(
-              width: 400, // Set a fixed width for the dialog
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    decoration: InputDecoration(
-                      labelText: "Mã sinh viên",
-                      border: OutlineInputBorder(),
-                      filled: true,
-                      fillColor: Colors.grey[200],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DropdownButtonFormField<String>(
+                  decoration: InputDecoration(labelText: 'Chọn thiết bị'),
+                  items: filteredDevices.map((device) {
+                    return DropdownMenuItem<String>(
+                      value: device['deviceId'],
+                      child: Text(device['name']),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      selectedDeviceId =
+                          value ?? ''; // Lưu trữ device_id đã chọn
+                    });
+                  },
+                ),
+                TextField(
+                  controller: quantityController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(labelText: 'Số lượng'),
+                ),
+                DropdownButtonFormField<String>(
+                  decoration: InputDecoration(labelText: 'Chọn sinh viên'),
+                  items: students.map((student) {
+                    return DropdownMenuItem<String>(
+                      value: student['studentId'],
+                      child: Text(student['fullName']),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    selectedStudentId = value ?? '';
+                  },
+                ),
+                TextField(
+                  controller: noteController,
+                  decoration: InputDecoration(labelText: 'Ghi chú'),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Text("Ngày trả:"),
+                ),
+                GestureDetector(
+                  onTap: () async {
+                    DateTime? pickedDate = await showDatePicker(
+                      context: context,
+                      initialDate: returnDate,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime(2101),
+                    );
+
+                    if (pickedDate != null && pickedDate != returnDate) {
+                      setState(() {
+                        returnDate = pickedDate;
+                        returnDateController.text = "${returnDate.toLocal()}"
+                            .split(
+                                ' ')[0]; // Cập nhật ngày trả trong controller
+                      });
+                    }
+                  },
+                  child: AbsorbPointer(
+                    child: TextField(
+                      controller:
+                          returnDateController, // Sử dụng controller để hiển thị ngày trả
+                      decoration: InputDecoration(
+                        labelText: 'Ngày trả',
+                        hintText: 'Nhấn để chọn ngày',
+                      ),
                     ),
-                    onChanged: (value) {
-                      studentId = value;
-                      studentIdError = null; // Reset error
-                    },
                   ),
-                  SizedBox(height: 8),
-                  // Hiển thị thông báo lỗi dưới trường nhập liệu
-                  if (studentIdError != null)
-                    Text(studentIdError!, style: TextStyle(color: Colors.red)),
-                  SizedBox(height: 16),
-                  TextField(
-                    decoration: InputDecoration(
-                      labelText: "Tên sinh viên",
-                      border: OutlineInputBorder(),
-                      filled: true,
-                      fillColor: Colors.grey[200],
-                    ),
-                    onChanged: (value) {
-                      studentName = value;
-                      studentNameError = null; // Reset error
-                    },
-                  ),
-                  SizedBox(height: 8),
-                  // Hiển thị thông báo lỗi dưới trường nhập liệu
-                  if (studentNameError != null)
-                    Text(studentNameError!,
-                        style: TextStyle(color: Colors.red)),
-                  SizedBox(height: 16),
-                  TextField(
-                    decoration: InputDecoration(
-                      labelText: "Thời gian dự kiến trả",
-                      border: OutlineInputBorder(),
-                      filled: true,
-                      fillColor: Colors.grey[200],
-                    ),
-                    readOnly: true,
-                    onTap: () async {
-                      DateTime? pickedDate = await showDatePicker(
-                        context: context,
-                        initialDate: returnDate,
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime(2101),
-                      );
-                      if (pickedDate != null) {
-                        setState(() {
-                          returnDate = pickedDate;
-                        });
-                      }
-                    },
-                    controller: TextEditingController(
-                      text: "${returnDate.toLocal()}".split(' ')[0],
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    decoration: InputDecoration(
-                      labelText: "Tên thiết bị",
-                      border: OutlineInputBorder(),
-                      filled: true,
-                      fillColor: Colors.grey[200],
-                    ),
-                    items: filteredDevices.map((device) {
-                      return DropdownMenuItem<String>(
-                        value: device['deviceId'],
-                        child: Text(device['name']),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      selectedDevice = value!;
-                      deviceError = null; // Reset error
-                    },
-                  ),
-                  SizedBox(height: 8),
-                  // Hiển thị thông báo lỗi dưới trường nhập liệu
-                  if (deviceError != null)
-                    Text(deviceError!, style: TextStyle(color: Colors.red)),
-                  SizedBox(height: 16),
-                  TextField(
-                    decoration: InputDecoration(
-                      labelText: "Số lượng",
-                      border: OutlineInputBorder(),
-                      filled: true,
-                      fillColor: Colors.grey[200],
-                    ),
-                    keyboardType: TextInputType.number,
-                    onChanged: (value) {
-                      quantity = int.tryParse(value) ?? 0;
-                      quantityError = null; // Reset error
-                    },
-                  ),
-                  SizedBox(height: 8),
-                  // Hiển thị thông báo lỗi dưới trường nhập liệu
-                  if (quantityError != null)
-                    Text(quantityError!, style: TextStyle(color: Colors.red)),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           actions: [
-            SizedBox(width: 20), // Add spacing to the left
             TextButton(
-              child: Text("Hủy", style: TextStyle(color: Colors.red)),
+              child: Text("Hủy"),
               onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
-            SizedBox(width: 16), // Add spacing between buttons
             TextButton(
-              child: Text("Mượn", style: TextStyle(color: Colors.orange)),
+              child: Text("Gửi yêu cầu"),
               onPressed: () {
-                // Kiểm tra xem tất cả các trường đã được điền hay chưa
-                setState(() {
-                  studentIdError =
-                      studentId.isEmpty ? "Vui lòng điền mã sinh viên." : null;
-                  studentNameError = studentName.isEmpty
-                      ? "Vui lòng điền tên sinh viên."
-                      : null;
-                  deviceError = selectedDevice.isEmpty
-                      ? "Vui lòng chọn tên thiết bị."
-                      : null;
-                  quantityError =
-                      quantity <= 0 ? "Vui lòng nhập số lượng hợp lệ." : null;
-                });
-
-                // Nếu tất cả đều hợp lệ, hiển thị thông báo thành công
-                if (studentIdError == null &&
-                    studentNameError == null &&
-                    deviceError == null &&
-                    quantityError == null) {
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text("Yêu cầu mượn thành công!"),
-                  ));
-                }
+                _submitBorrowRequest(
+                  selectedDeviceId, // Sử dụng device_id đã chọn
+                  quantityController.text,
+                  selectedStudentId,
+                  noteController.text,
+                  returnDate, // Nếu cần, có thể thay đổi cách truyền date
+                );
+                Navigator.of(context).pop(); // Đóng dialog sau khi gửi
               },
             ),
-            SizedBox(width: 20), // Add spacing to the right
           ],
         );
       },
     );
+  }
+
+  Future<void> _submitBorrowRequest(
+    String deviceId, // Sử dụng device_id từ input
+    String quantity,
+    String userId, // Student ID
+    String note,
+    DateTime returningDate,
+  ) async {
+    final response = await http.post(
+      Uri.parse(
+          'https://sos-vanthuc-backend-bl1m.onrender.com/api/device-borrowing'),
+      headers: {
+        'accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        "name": "Borrow Request", // Bạn có thể tùy chỉnh tên này
+        "devices": [
+          {
+            "device_id": deviceId, // Sử dụng device_id từ input
+            "quantity": int.parse(quantity), // Đảm bảo đây là số nguyên
+          },
+        ],
+        "user_id": 12, // Thay đổi thành ID người dùng thực nếu có
+        "customer_id": int.parse(userId),
+        "note": note,
+        "returning_date": returningDate.toIso8601String(),
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      print('Yêu cầu mượn đã được gửi thành công');
+      // Có thể làm mới dữ liệu hoặc hiển thị thông báo thành công
+    } else {
+      print('Gửi yêu cầu mượn thất bại: ${response.body}');
+    }
   }
 
   @override
@@ -272,9 +287,9 @@ class _AllDeviceScreenState extends State<AllDeviceScreen> {
               ),
             ),
             child: Text(
-              "Tạo yêu cầu mượn thiết bị",
+              "Yêu cầu mượn thiết bị",
               style:
-                  TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
             ),
           ),
           Expanded(
@@ -283,57 +298,43 @@ class _AllDeviceScreenState extends State<AllDeviceScreen> {
               itemBuilder: (context, index) {
                 final device = filteredDevices[index];
                 return Card(
-                  margin: EdgeInsets.all(8),
+                  margin:
+                      const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                   child: ListTile(
                     title: Text(
-                      "Mã: ${device['deviceId']}",
+                      "${device['type']} - ${device['name']}",
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 4.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.devices, size: 16, color: Colors.grey),
-                              SizedBox(width: 4),
-                              Text("Loại: ${device['type']}"),
-                            ],
-                          ),
-                          Row(
-                            children: [
-                              Icon(Icons.assignment,
-                                  size: 16, color: Colors.grey),
-                              SizedBox(width: 4),
-                              Text("Tên thiết bị: ${device['name']}"),
-                            ],
-                          ),
-                          Row(
-                            children: [
-                              Icon(Icons.storage, size: 16, color: Colors.grey),
-                              SizedBox(width: 4),
-                              Text("Tổng số lượng: ${device['totalQuantity']}"),
-                            ],
-                          ),
-                          Row(
-                            children: [
-                              Icon(Icons.check, size: 16, color: Colors.grey),
-                              SizedBox(width: 4),
-                              Text("Đã cho mượn: ${device['borrowed']}"),
-                            ],
-                          ),
-                          Row(
-                            children: [
-                              Icon(Icons.check_circle,
-                                  size: 16, color: Colors.grey),
-                              SizedBox(width: 4),
-                              Text("Sẵn sàng: ${device['available']}"),
-                            ],
-                          ),
-                        ],
-                      ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.check, size: 16, color: Colors.grey),
+                            SizedBox(width: 4),
+                            Text("Tổng số: ${device['totalQuantity']}"),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            Icon(Icons.check_box, size: 16, color: Colors.grey),
+                            SizedBox(width: 4),
+                            Text("Đã mượn: ${device['borrowed']}"),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            Icon(Icons.check_circle,
+                                size: 16, color: Colors.grey),
+                            SizedBox(width: 4),
+                            Text("Còn lại: ${device['available']}"),
+                          ],
+                        ),
+                      ],
                     ),
+                    onTap: () {
+                      // Navigate to device detail screen if needed
+                    },
                   ),
                 );
               },

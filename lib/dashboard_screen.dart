@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/devicelist_screen.dart';
@@ -5,6 +7,7 @@ import 'package:flutter_application_1/devicelist_screen.dart';
 // import 'package:flutter_application_1/manage_borrowed_device_screen.dart';
 // import 'package:flutter_application_1/manage_room_screen.dart';
 import 'package:flutter_application_1/account_screen.dart';
+import 'package:http/http.dart' as http; // Để gọi API
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -15,6 +18,115 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final int _selectedIndex = 0;
+  List<dynamic> borrowingList = [];
+  List<dynamic> room = [];
+
+  int totalDevices = 0; // Variable to hold total devices
+  int totalRepair = 0;
+  int totalBorrowing = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchTotalDevices();
+    fetchTotalRepair();
+    fetchBorrowingData();
+    fetchRoom();
+  }
+
+  Future<void> fetchRoom() async {
+    final response = await http.get(
+      Uri.parse('https://sos-vanthuc-backend-bl1m.onrender.com/api/room'),
+      headers: {
+        'accept': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final decodedResponse = utf8.decode(response.bodyBytes);
+      final List<dynamic> data = jsonDecode(decodedResponse);
+      // room = data.where((item) => item['is_using'] == false).toList();
+      room = data;
+
+      print(room);
+
+      setState(() {
+        // Lọc các phòng có is_using === true
+        room = room;
+      });
+    } else {
+      print('Failed to load borrowing data');
+    }
+  }
+
+  Future<void> fetchTotalDevices() async {
+    final response = await http.get(
+      Uri.parse(
+          'https://sos-vanthuc-backend-bl1m.onrender.com/api/device?skip=0&limit=1000'),
+      headers: {'accept': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+
+      int totalQuantity = 0;
+
+      for (var device in data) {
+        totalQuantity += device['total'] as int; // Casting to int
+      }
+
+      setState(() {
+        totalDevices = totalQuantity; // Cập nhật biến totalDevices nếu cần
+      });
+    } else {
+      throw Exception('Failed to load devices');
+    }
+  }
+
+  Future<void> fetchTotalRepair() async {
+    final response = await http.get(
+      Uri.parse(
+          'https://sos-vanthuc-backend-bl1m.onrender.com/api/device-repair?skip=0&limit=100'),
+      headers: {'accept': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+
+      int totalQuantity = data.length;
+
+      setState(() {
+        totalRepair = totalQuantity; // Cập nhật biến totalDevices nếu cần
+      });
+    } else {
+      throw Exception('Failed to load devices');
+    }
+  }
+
+  Future<void> fetchBorrowingData() async {
+    final response = await http.get(
+      Uri.parse(
+          'https://sos-vanthuc-backend-bl1m.onrender.com/api/device-borrowing?skip=0&limit=100'),
+      headers: {
+        'accept': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final decodedResponse = utf8.decode(response.bodyBytes);
+      final List<dynamic> data = jsonDecode(decodedResponse);
+      borrowingList =
+          data.where((item) => item['is_returned'] == false).toList();
+      int totalQuantity = borrowingList.length;
+
+      setState(() {
+        // Lọc các phiếu mượn có is_returned = false
+        totalBorrowing = totalQuantity;
+      });
+    } else {
+      print('Failed to load borrowing data');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,14 +176,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             child: ListView(
                               scrollDirection: Axis.horizontal,
                               children: [
-                                _buildItem('Tổng số thiết bị :', Colors.blue,
-                                    Icons.devices, '100'),
-                                _buildItem('Đã cho mượn :', Colors.green,
-                                    Icons.check_circle, '20'),
-                                _buildItem('Sẵn sàng :', Colors.orange,
-                                    Icons.check, '75'),
+                                _buildItem(
+                                    'Tổng số thiết bị:',
+                                    Colors.blue,
+                                    Icons.devices,
+                                    totalDevices
+                                        .toString()), // Updated totalDevices
+
+                                _buildItem(
+                                    'Đã cho mượn :',
+                                    Colors.green,
+                                    Icons.check_circle,
+                                    totalBorrowing.toString()),
+                                _buildItem(
+                                    'Sẵn sàng :',
+                                    Colors.orange,
+                                    Icons.check,
+                                    (totalDevices -
+                                            totalBorrowing -
+                                            totalRepair)
+                                        .toString()),
                                 _buildItem('Đang bảo trì :', Colors.red,
-                                    Icons.build, '5'),
+                                    Icons.build, totalRepair.toString()),
                               ],
                             ),
                           ),
